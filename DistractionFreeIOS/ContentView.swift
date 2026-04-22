@@ -25,7 +25,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            Color.black.ignoresSafeArea()
+            Color(UIColor.systemBackground).ignoresSafeArea()
             
             // Instagram WKWebView Wrapper
             WebViewWrapper(
@@ -74,34 +74,19 @@ struct ContentView: View {
                 y: max(-UIScreen.main.bounds.height + 100, min(CGFloat(offsetY) + currentDragOffset.height, 21))
             )
             .padding(24)
-            // Long Press and Drag implementation
+            // Instant Drag implementation
             .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.5)
-                    .sequenced(before: DragGesture(minimumDistance: 0.0, coordinateSpace: .local))
-                    .onChanged { value in
-                        switch value {
-                        case .second(true, let drag):
-                            if let drag = drag {
-                                currentDragOffset = drag.translation
-                            }
-                        default:
-                            break
-                        }
+                DragGesture(minimumDistance: 0.0, coordinateSpace: .local)
+                    .onChanged { drag in
+                        currentDragOffset = drag.translation
                     }
-                    .onEnded { value in
-                        switch value {
-                        case .second(true, let drag):
-                            if let drag = drag {
-                                let newX = CGFloat(offsetX) + drag.translation.width
-                                let newY = CGFloat(offsetY) + drag.translation.height
-                                
-                                offsetX = Double(max(-21, min(newX, UIScreen.main.bounds.width - 130)))
-                                offsetY = Double(max(-UIScreen.main.bounds.height + 100, min(newY, 21)))
-                                currentDragOffset = .zero
-                            }
-                        default:
-                            break
-                        }
+                    .onEnded { drag in
+                        let newX = CGFloat(offsetX) + drag.translation.width
+                        let newY = CGFloat(offsetY) + drag.translation.height
+                        
+                        offsetX = Double(max(-21, min(newX, UIScreen.main.bounds.width - 130)))
+                        offsetY = Double(max(-UIScreen.main.bounds.height + 100, min(newY, 21)))
+                        currentDragOffset = .zero
                     }
             )
         }
@@ -135,8 +120,8 @@ struct WebViewWrapper: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
-        webView.backgroundColor = .black
-        webView.scrollView.backgroundColor = .black
+        webView.backgroundColor = .systemBackground
+        webView.scrollView.backgroundColor = .systemBackground
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         
         DispatchQueue.main.async {
@@ -177,7 +162,7 @@ struct WebViewWrapper: UIViewRepresentable {
                     // 1. INSTANT CSS INJECTION
                     const style = document.createElement('style');
                     style.innerHTML = `
-                        body { background-color: black !important; margin: 0 !important; padding: 0 !important; }
+                        body { margin: 0 !important; padding: 0 !important; }
                         
                         /* Hide only Reels tab and link */
                         a[href^="/reels/"] {
@@ -246,22 +231,55 @@ struct WebViewWrapper: UIViewRepresentable {
                     const dismissAction = (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        if (document.activeElement) {
-                            document.activeElement.blur();
-                        }
-                        // Secondary aggressive blur for Instagram's React contenteditables
-                        const edits = document.querySelectorAll('[contenteditable="true"], textarea, input');
-                        edits.forEach(el => el.blur());
+                        if (document.activeElement) document.activeElement.blur();
+                        document.querySelectorAll('[contenteditable="true"], textarea, input').forEach(el => el.blur());
                         kbBtn.classList.remove('df-kb-visible');
                     };
 
                     kbBtn.addEventListener('mousedown', dismissAction);
                     kbBtn.addEventListener('touchstart', dismissAction);
 
+                    const updateKbPos = () => {
+                        if (!kbBtn.classList.contains('df-kb-visible')) return;
+                        
+                        // Find the Instagram sticker/emoji button to place the dismiss button EXACTLY over it
+                        const svgs = Array.from(document.querySelectorAll('svg'));
+                        const stickerSvgs = svgs.filter(s => {
+                            const lbl = s.getAttribute('aria-label');
+                            return lbl && (lbl.toLowerCase().includes('emoji') || lbl.toLowerCase().includes('sticker'));
+                        });
+                        
+                        const sticker = stickerSvgs[stickerSvgs.length - 1]; // bottom one inside DM bar
+                        if (sticker) {
+                            const r = sticker.getBoundingClientRect();
+                            kbBtn.style.position = 'fixed';
+                            kbBtn.style.top = (r.top - 6) + 'px';
+                            kbBtn.style.left = (r.left - 6) + 'px';
+                            kbBtn.style.width = (r.width + 12) + 'px';
+                            kbBtn.style.height = (r.height + 12) + 'px';
+                            kbBtn.style.bottom = 'auto';
+                            kbBtn.style.right = 'auto';
+                            kbBtn.style.background = 'rgba(120, 120, 120, 0.4)';
+                            kbBtn.style.backdropFilter = 'blur(10px)';
+                            kbBtn.style.WebkitBackdropFilter = 'blur(10px)';
+                            kbBtn.style.borderRadius = '50%';
+                        } else {
+                            // default fallback
+                            kbBtn.style.bottom = '55vh';
+                            kbBtn.style.right = '15px';
+                            kbBtn.style.top = 'auto';
+                            kbBtn.style.left = 'auto';
+                            kbBtn.style.width = '40px';
+                            kbBtn.style.height = '40px';
+                        }
+                    };
+
                     document.addEventListener('focusin', (e) => {
                         const tag = e.target.tagName;
                         if (tag === 'TEXTAREA' || tag === 'INPUT' || e.target.isContentEditable || e.target.getAttribute('contenteditable') === 'true' || e.target.getAttribute('role') === 'textbox') {
                             kbBtn.classList.add('df-kb-visible');
+                            setTimeout(updateKbPos, 100);
+                            setTimeout(updateKbPos, 400);
                         }
                     });
 
@@ -273,6 +291,10 @@ struct WebViewWrapper: UIViewRepresentable {
                             }
                         }, 200);
                     });
+
+                    // Track keyboard resizes to keep the button placed perfectly over the sticker menu
+                    window.visualViewport.addEventListener('resize', updateKbPos);
+                    window.visualViewport.addEventListener('scroll', updateKbPos);
 
                     // 2. NATIVE TOGGLE FUNCTION
                     window.toggleMediaAllowed = function(allowed) {
