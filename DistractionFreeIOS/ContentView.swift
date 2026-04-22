@@ -194,8 +194,85 @@ struct WebViewWrapper: UIViewRepresentable {
                             padding: 20px !important;
                             margin: -10px !important;
                         }
+
+                        /* Smoother general animations and scrolling */
+                        html, body {
+                            scroll-behavior: smooth !important;
+                            -webkit-overflow-scrolling: touch !important;
+                        }
+
+                        a, button, div[role="button"] {
+                            transition: transform 0.2s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.2s ease-in-out !important;
+                        }
+
+                        /* Keyboard Dismiss Button */
+                        #df-dismiss-kb {
+                            position: fixed;
+                            bottom: 55vh; /* Places it clearly above the keyboard */
+                            right: 15px;
+                            width: 50px;
+                            height: 50px;
+                            background: rgba(30, 30, 30, 0.8);
+                            backdrop-filter: blur(10px);
+                            -webkit-backdrop-filter: blur(10px);
+                            border: 1px solid rgba(255,255,255,0.2);
+                            border-radius: 25px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 24px;
+                            z-index: 99999999;
+                            opacity: 0;
+                            transform: scale(0.8);
+                            pointer-events: none;
+                            transition: opacity 0.3s ease, transform 0.3s ease;
+                            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+                            color: white;
+                        }
+                        #df-dismiss-kb.df-kb-visible {
+                            opacity: 1 !important;
+                            transform: scale(1.0) !important;
+                            pointer-events: auto !important;
+                        }
                     `;
                     document.head.appendChild(style);
+
+                    // 1.5 KEYBOARD DISMISS LOGIC
+                    const kbBtn = document.createElement('div');
+                    kbBtn.id = 'df-dismiss-kb';
+                    kbBtn.innerHTML = '⬇️';
+                    document.body.appendChild(kbBtn);
+
+                    const dismissAction = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (document.activeElement) {
+                            document.activeElement.blur();
+                        }
+                        // Secondary aggressive blur for Instagram's React contenteditables
+                        const edits = document.querySelectorAll('[contenteditable="true"], textarea, input');
+                        edits.forEach(el => el.blur());
+                        kbBtn.classList.remove('df-kb-visible');
+                    };
+
+                    kbBtn.addEventListener('mousedown', dismissAction);
+                    kbBtn.addEventListener('touchstart', dismissAction);
+
+                    document.addEventListener('focusin', (e) => {
+                        const tag = e.target.tagName;
+                        if (tag === 'TEXTAREA' || tag === 'INPUT' || e.target.isContentEditable || e.target.getAttribute('contenteditable') === 'true' || e.target.getAttribute('role') === 'textbox') {
+                            kbBtn.classList.add('df-kb-visible');
+                        }
+                    });
+
+                    document.addEventListener('focusout', (e) => {
+                        setTimeout(() => {
+                            const act = document.activeElement;
+                            if (!act || (act.tagName !== 'TEXTAREA' && act.tagName !== 'INPUT' && !act.isContentEditable && act.getAttribute('contenteditable') !== 'true' && act.getAttribute('role') !== 'textbox')) {
+                                kbBtn.classList.remove('df-kb-visible');
+                            }
+                        }, 200);
+                    });
 
                     // 2. NATIVE TOGGLE FUNCTION
                     window.toggleMediaAllowed = function(allowed) {
