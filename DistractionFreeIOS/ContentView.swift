@@ -74,7 +74,7 @@ struct ContentView: View {
             // Long Press and Drag implementation
             .simultaneousGesture(
                 LongPressGesture(minimumDuration: 0.5)
-                    .sequenced(before: DragGesture())
+                    .sequenced(before: DragGesture(minimumDistance: 0.0, coordinateSpace: .local))
                     .onChanged { value in
                         switch value {
                         case .second(true, let drag):

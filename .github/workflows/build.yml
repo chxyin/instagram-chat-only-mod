@@ -24,6 +24,7 @@ jobs:
             -scheme "DistractionFreeIOS" \
             -configuration Release \
             -sdk iphoneos \
+            IPHONEOS_DEPLOYMENT_TARGET=16.0 \
             -derivedDataPath derivedData \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
