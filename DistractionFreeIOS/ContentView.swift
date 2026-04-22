@@ -174,15 +174,8 @@ struct WebViewWrapper: UIViewRepresentable {
                     style.innerHTML = `
                         body { background-color: black !important; margin: 0 !important; padding: 0 !important; }
                         
-                        a[href="/"],
-                        a[href^="/explore/"],
-                        a[href^="/reels/"],
-                        a[href*="/camera/"],
-                        a[href*="/direct/new"],
-                        [aria-label="New message" i],
-                        [aria-label="New chat" i],
-                        svg[aria-label="New message" i],
-                        svg[aria-label="New chat" i] {
+                        /* Hide only Reels tab and link */
+                        a[href^="/reels/"] {
                             display: none !important;
                         }
                     `;
@@ -206,24 +199,10 @@ struct WebViewWrapper: UIViewRepresentable {
                         try {
                             const path = window.location.pathname;
 
-                            // Stop hiding stuff if on login page
-                            if (path.includes('login') || path.includes('signup') || document.querySelector('input[name="username"]')) {
-                                const mainFeed = document.querySelector('main');
-                                if (mainFeed) mainFeed.style.removeProperty('display');
+                            // If they try to navigate directly to reels, redirect to home feed
+                            if (path.startsWith('/reels/')) {
+                                window.location.replace('/');
                                 return;
-                            }
-
-                            if (path === '/') {
-                                document.querySelectorAll('article').forEach(el => el.style.setProperty('display', 'none', 'important'));
-                                const mainFeed = document.querySelector('main');
-                                if (mainFeed) mainFeed.style.setProperty('display', 'none', 'important');
-                                window.location.replace('/direct/');
-                                return;
-                            }
-                           
-                            if (path.startsWith('/direct')) {
-                                const mainFeed = document.querySelector('main');
-                                if (mainFeed) mainFeed.style.setProperty('display', 'flex', 'important');
                             }
 
                             // Media Block
@@ -237,31 +216,13 @@ struct WebViewWrapper: UIViewRepresentable {
                                 });
                             }
 
-                            const dmLink = document.querySelector('a[href^="/direct/"]');
-                            if (dmLink) {
-                                let navBar = dmLink.parentElement;
-                                for (let i = 0; i < 5; i++) {
-                                    if (!navBar || navBar.tagName === 'BODY') break;
-                                    if (navBar.children.length > 2) {
-                                        navBar.style.setProperty('justify-content', 'center', 'important');
-                                        navBar.style.setProperty('width', '100%', 'important');
-                                        navBar.style.setProperty('display', 'flex', 'important');
-                                        Array.from(navBar.children).forEach(child => {
-                                            if (!child.contains(dmLink)) {
-                                                child.style.setProperty('display', 'none', 'important');
-                                            }
-                                        });
-                                        break;
-                                    }
-                                    navBar = navBar.parentElement;
-                                }
-                            }
-
-                            const textNodes = document.querySelectorAll('span, div, a, h2');
+                            // Extra aggressive attempt to hide Reels inside the main feed
+                            const textNodes = document.querySelectorAll('span, div, h2, a');
                             for (let el of textNodes) {
                                 if (el.children.length === 0 && el.textContent) {
                                     const txt = el.textContent.trim().toLowerCase();
 
+                                    // Hide "Use the App" banners
                                     if (txt.includes('instagram app') || txt.includes('use the app') || txt === 'open app') {
                                         let p = el;
                                         for (let i = 0; i < 6; i++) {
@@ -275,49 +236,23 @@ struct WebViewWrapper: UIViewRepresentable {
                                 }
                             }
 
-                            // Hide 'New Message' / 'New Chat' buttons
-                            const newMsgBtns = document.querySelectorAll('[aria-label="New message" i], [aria-label="New chat" i], a[href*="/direct/new"]');
-                            newMsgBtns.forEach(btn => {
-                                let p = btn;
-                                for (let i = 0; i < 4; i++) {
-                                    if (!p || p.tagName === 'BODY' || (p.parentElement && p.parentElement.childElementCount > 1)) {
-                                        break;
-                                    }
+                            // Specifically look for Reels SVG to hide suggested reels in feed
+                            const reelIcons = document.querySelectorAll('svg[aria-label="Reels" i]');
+                            reelIcons.forEach(icon => {
+                                let p = icon;
+                                for (let i = 0; i < 8; i++) {
+                                    if (!p || p.tagName === 'BODY' || p.tagName === 'ARTICLE') break;
                                     p = p.parentElement;
                                 }
-                               
-                                if (p) {
+                                if (p && p.tagName === 'ARTICLE') {
                                     p.style.setProperty('display', 'none', 'important');
-                                    p.style.setProperty('width', '0', 'important');
-                                    p.style.setProperty('height', '0', 'important');
-                                    p.style.setProperty('margin', '0', 'important');
-                                    p.style.setProperty('padding', '0', 'important');
-                                    p.style.setProperty('position', 'absolute', 'important');
-                                    p.style.setProperty('pointer-events', 'none', 'important');
-                                }
-                               
-                                if (p && p.parentElement) {
-                                    p.parentElement.style.setProperty('display', 'none', 'important');
-                                    p.parentElement.style.setProperty('width', '0', 'important');
-                                    p.parentElement.style.setProperty('height', '0', 'important');
-                                    p.parentElement.style.setProperty('margin', '0', 'important');
-                                    p.parentElement.style.setProperty('padding', '0', 'important');
-                                    p.parentElement.style.setProperty('position', 'absolute', 'important');
-                                    p.parentElement.style.setProperty('pointer-events', 'none', 'important');
-                                }
-                                let grandP = p ? p.parentElement?.parentElement : null;
-                                if (grandP) {
-                                    grandP.style.setProperty('padding-bottom', '0', 'important');
-                                    grandP.style.setProperty('margin-bottom', '0', 'important');
                                 }
                             });
 
-                            // Super aggressive Notes Nuke
-                            if (window.location.pathname.startsWith('/direct')) {
-                                const allDivs = document.querySelectorAll('div, ul');
-                                for (let d of allDivs) {
-                                    const text = d.textContent ? d.textContent.toLowerCase() : '';
-                                    if (text.includes('your note') || text === 'notes' || text.includes('leave a note')) {
+                        } catch (e) {}
+                    }, 800);
+                })();
+            """
                                         const rect = d.getBoundingClientRect();
                                         if (rect.height > 60 && rect.height < 250 && rect.width > 100) {
                                             d.style.setProperty('display', 'none', 'important');
