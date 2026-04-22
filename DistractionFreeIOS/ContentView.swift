@@ -326,4 +326,7 @@ struct WebViewWrapper: UIViewRepresentable {
             """
            
             webView.evaluateJavaScript(jsScript, completionHandler: nil)
-            webView.evaluateJavaScript("document.body.style.zoom =
+            webView.evaluateJavaScript("document.body.style.zoom = '\(parent.zoomLevel)%';", completionHandler: nil)
+        }
+    }
+}
