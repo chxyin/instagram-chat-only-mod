@@ -253,22 +253,6 @@ struct WebViewWrapper: UIViewRepresentable {
                     }, 800);
                 })();
             """
-                                        const rect = d.getBoundingClientRect();
-                                        if (rect.height > 60 && rect.height < 250 && rect.width > 100) {
-                                            d.style.setProperty('display', 'none', 'important');
-                                            d.style.setProperty('height', '0', 'important');
-                                            d.style.setProperty('min-height', '0', 'important');
-                                            d.style.setProperty('position', 'absolute', 'important');
-                                            d.style.setProperty('opacity', '0', 'important');
-                                            d.style.setProperty('pointer-events', 'none', 'important');
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (e) {}
-                    }, 800);
-                })();
-            """
            
             webView.evaluateJavaScript(jsScript, completionHandler: nil)
             webView.evaluateJavaScript("document.body.style.zoom = '\(parent.zoomLevel)%';", completionHandler: nil)
