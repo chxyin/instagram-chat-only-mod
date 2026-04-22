@@ -25,6 +25,8 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
+            Color.black.ignoresSafeArea()
+            
             // Instagram WKWebView Wrapper
             WebViewWrapper(
                 zoomLevel: $zoomLevel,
@@ -127,6 +129,11 @@ struct WebViewWrapper: UIViewRepresentable {
         config.mediaTypesRequiringUserActionForPlayback = .all
 
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.isOpaque = false
+        webView.backgroundColor = .black
+        webView.scrollView.backgroundColor = .black
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        
         DispatchQueue.main.async {
             webViewRef = webView
         }
@@ -165,6 +172,8 @@ struct WebViewWrapper: UIViewRepresentable {
                     // 1. INSTANT CSS INJECTION
                     const style = document.createElement('style');
                     style.innerHTML = `
+                        body { background-color: black !important; margin: 0 !important; padding: 0 !important; }
+                        
                         a[href="/"],
                         a[href^="/explore/"],
                         a[href^="/reels/"],
