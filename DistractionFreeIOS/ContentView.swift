@@ -31,7 +31,6 @@ struct ContentView: View {
                 mediaAllowed: $mediaAllowed,
                 webViewRef: $webView
             )
-            .edgesIgnoringSafeArea(.all)
             .onAppear {
                 screenTimeSeconds = UserDefaults.standard.integer(forKey: todayKey)
             }
