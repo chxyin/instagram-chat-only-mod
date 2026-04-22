@@ -69,8 +69,10 @@ struct ContentView: View {
                     .background(Color.black.opacity(0.8))
                     .cornerRadius(16)
             }
-            .offset(x: CGFloat(offsetX) + currentDragOffset.width,
-                    y: CGFloat(offsetY) + currentDragOffset.height)
+            .offset(
+                x: max(-21, min(CGFloat(offsetX) + currentDragOffset.width, UIScreen.main.bounds.width - 130)),
+                y: max(-UIScreen.main.bounds.height + 100, min(CGFloat(offsetY) + currentDragOffset.height, 21))
+            )
             .padding(24)
             // Long Press and Drag implementation
             .simultaneousGesture(
@@ -90,8 +92,11 @@ struct ContentView: View {
                         switch value {
                         case .second(true, let drag):
                             if let drag = drag {
-                                offsetX += Double(drag.translation.width)
-                                offsetY += Double(drag.translation.height)
+                                let newX = CGFloat(offsetX) + drag.translation.width
+                                let newY = CGFloat(offsetY) + drag.translation.height
+                                
+                                offsetX = Double(max(-21, min(newX, UIScreen.main.bounds.width - 130)))
+                                offsetY = Double(max(-UIScreen.main.bounds.height + 100, min(newY, 21)))
                                 currentDragOffset = .zero
                             }
                         default:
@@ -177,6 +182,17 @@ struct WebViewWrapper: UIViewRepresentable {
                         /* Hide only Reels tab and link */
                         a[href^="/reels/"] {
                             display: none !important;
+                        }
+
+                        /* Make reply button in DMs massively larger */
+                        svg[aria-label="Reply" i] {
+                            transform: scale(2.0) !important;
+                        }
+                        
+                        div:has(> svg[aria-label="Reply" i]),
+                        [aria-label="Reply" i] {
+                            padding: 20px !important;
+                            margin: -10px !important;
                         }
                     `;
                     document.head.appendChild(style);
