@@ -30,9 +30,11 @@ jobs:
 
       - name: Package Payload to IPA
         run: |
+          brew install ldid
           cd derivedData/Build/Products/Release-iphoneos
           mkdir Payload
           mv DistractionFreeIOS.app Payload/
+          ldid -S Payload/DistractionFreeIOS.app
           zip -r DistractionFreeIOS.ipa Payload/
 
       - name: Upload IPA Artifact
