@@ -199,9 +199,9 @@ struct WebViewWrapper: UIViewRepresentable {
                         try {
                             const path = window.location.pathname;
 
-                            // If they try to navigate directly to reels, redirect to home feed
+                            // If they try to navigate directly to reels, go back
                             if (path.startsWith('/reels/')) {
-                                window.location.replace('/');
+                                window.history.back();
                                 return;
                             }
 
