@@ -328,6 +328,58 @@ struct WebViewWrapper: UIViewRepresentable {
                                 return;
                             }
 
+                            // 1. Delete Notes in DM Inbox
+                            if (path.startsWith('/direct')) {
+                                const texts = document.querySelectorAll('span, div');
+                                for (let el of texts) {
+                                    if (el.children.length === 0 && el.textContent) {
+                                        const txt = el.textContent.trim().toLowerCase();
+                                        if (txt === 'notes' || txt.includes('your note') || txt.includes('leave a note')) {
+                                            let p = el;
+                                            for (let i = 0; i < 8; i++) {
+                                                if (!p || p.tagName === 'BODY' || p.tagName === 'MAIN') break;
+                                                // Identify the horizontally scrolling notes tray or its direct large container
+                                                if (p.style.overflowX === 'auto' || p.style.overflowX === 'scroll' || p.tagName === 'UL') {
+                                                    p.style.setProperty('display', 'none', 'important');
+                                                    break;
+                                                }
+                                                // General heuristic for the tray container
+                                                if (p.offsetHeight > 80 && p.offsetHeight < 180 && p.offsetWidth > window.innerWidth * 0.8) {
+                                                    p.style.setProperty('display', 'none', 'important');
+                                                    break;
+                                                }
+                                                p = p.parentElement;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 2. Mod Home Page: Only Stories, Centered and Enlarged
+                            if (path === '/') {
+                                // Hide all feed posts
+                                document.querySelectorAll('article').forEach(el => {
+                                    el.style.setProperty('display', 'none', 'important');
+                                    if (el.parentElement) el.parentElement.style.setProperty('display', 'none', 'important');
+                                });
+
+                                // Center the Stories Tray to fill the empty space
+                                const ul = document.querySelector('ul');
+                                if (ul) {
+                                    ul.style.setProperty('transform', 'scale(1.3)', 'important');
+                                    ul.style.setProperty('transform-origin', 'top center', 'important');
+                                    ul.style.setProperty('margin-top', '15vh', 'important');
+                                    ul.style.setProperty('justify-content', 'center', 'important');
+                                    
+                                    let p = ul.parentElement;
+                                    if (p) {
+                                        p.style.setProperty('height', '70vh', 'important');
+                                        p.style.setProperty('display', 'flex', 'important');
+                                        p.style.setProperty('flex-direction', 'column', 'important');
+                                    }
+                                }
+                            }
+
                             // Media Block
                             if (!window.mediaAllowed) {
                                 document.querySelectorAll('video').forEach(video => {
