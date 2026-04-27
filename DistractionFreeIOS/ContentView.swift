@@ -110,6 +110,14 @@ struct WebViewWrapper: UIViewRepresentable {
     @Binding var webViewRef: WKWebView?
    
     func makeUIView(context: Context) -> WKWebView {
+        // Force massive memory and disk cache to speed up navigation and chat loading
+        let sharedCache = URLCache(
+            memoryCapacity: 512 * 1024 * 1024, // 512 MB Memory Cache
+            diskCapacity: 2 * 1024 * 1024 * 1024, // 2 GB Disk Cache
+            directory: nil
+        )
+        URLCache.shared = sharedCache
+
         let prefs = WKWebpagePreferences()
         prefs.allowsContentJavaScript = true
        
