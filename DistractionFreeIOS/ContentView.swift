@@ -198,33 +198,32 @@ struct WebViewWrapper: UIViewRepresentable {
                             transition: transform 0.2s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.2s ease-in-out !important;
                         }
 
-                        /* Keyboard Dismiss Button */
                         #df-dismiss-kb {
                             position: fixed;
                             bottom: 55vh; /* Places it clearly above the keyboard */
-                            right: 15px;
-                            width: 50px;
-                            height: 50px;
-                            background: rgba(30, 30, 30, 0.8);
+                            left: 50%;
+                            transform: translateX(-50%) scale(0.8);
+                            width: 60px;
+                            height: 40px;
+                            background: rgba(30, 30, 30, 0.5);
                             backdrop-filter: blur(10px);
                             -webkit-backdrop-filter: blur(10px);
                             border: 1px solid rgba(255,255,255,0.2);
-                            border-radius: 25px;
+                            border-radius: 20px;
                             display: flex;
                             align-items: center;
                             justify-content: center;
-                            font-size: 24px;
+                            font-size: 20px;
                             z-index: 99999999;
                             opacity: 0;
-                            transform: scale(0.8);
                             pointer-events: none;
                             transition: opacity 0.3s ease, transform 0.3s ease;
                             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
                             color: white;
                         }
                         #df-dismiss-kb.df-kb-visible {
-                            opacity: 1 !important;
-                            transform: scale(1.0) !important;
+                            opacity: 0.5 !important;
+                            transform: translateX(-50%) scale(1.0) !important;
                             pointer-events: auto !important;
                         }
                     `;
@@ -250,35 +249,25 @@ struct WebViewWrapper: UIViewRepresentable {
                     const updateKbPos = () => {
                         if (!kbBtn.classList.contains('df-kb-visible')) return;
                         
-                        // Find the Instagram sticker/emoji button to place the dismiss button EXACTLY over it
-                        const svgs = Array.from(document.querySelectorAll('svg'));
-                        const stickerSvgs = svgs.filter(s => {
-                            const lbl = s.getAttribute('aria-label');
-                            return lbl && (lbl.toLowerCase().includes('emoji') || lbl.toLowerCase().includes('sticker'));
-                        });
-                        
-                        const sticker = stickerSvgs[stickerSvgs.length - 1]; // bottom one inside DM bar
-                        if (sticker) {
-                            const r = sticker.getBoundingClientRect();
+                        const act = document.activeElement;
+                        // Determine the position above the currently active input
+                        if (act && act.getBoundingClientRect) {
+                            const r = act.getBoundingClientRect();
                             kbBtn.style.position = 'fixed';
-                            kbBtn.style.top = (r.top - 6) + 'px';
-                            kbBtn.style.left = (r.left - 6) + 'px';
-                            kbBtn.style.width = (r.width + 12) + 'px';
-                            kbBtn.style.height = (r.height + 12) + 'px';
+                            kbBtn.style.top = (r.top - 50) + 'px'; // 50px above the input
+                            kbBtn.style.left = '50%';
+                            kbBtn.style.transform = 'translateX(-50%)';
                             kbBtn.style.bottom = 'auto';
                             kbBtn.style.right = 'auto';
-                            kbBtn.style.background = 'rgba(120, 120, 120, 0.4)';
-                            kbBtn.style.backdropFilter = 'blur(10px)';
-                            kbBtn.style.WebkitBackdropFilter = 'blur(10px)';
-                            kbBtn.style.borderRadius = '50%';
+                            kbBtn.style.background = 'rgba(120, 120, 120, 0.5)';
                         } else {
                             // default fallback
                             kbBtn.style.bottom = '55vh';
-                            kbBtn.style.right = '15px';
+                            kbBtn.style.left = '50%';
+                            kbBtn.style.transform = 'translateX(-50%)';
                             kbBtn.style.top = 'auto';
-                            kbBtn.style.left = 'auto';
-                            kbBtn.style.width = '40px';
-                            kbBtn.style.height = '40px';
+                            kbBtn.style.right = 'auto';
+                            kbBtn.style.background = 'rgba(30, 30, 30, 0.5)';
                         }
                     };
 
