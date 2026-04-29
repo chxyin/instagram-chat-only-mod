@@ -203,17 +203,18 @@ struct WebViewWrapper: UIViewRepresentable {
                             bottom: 55vh; /* Places it clearly above the keyboard */
                             left: 50%;
                             transform: translateX(-50%) scale(0.8);
-                            width: 60px;
-                            height: 40px;
-                            background: rgba(30, 30, 30, 0.5);
+                            padding: 0 15px;
+                            height: 36px;
+                            background: rgba(10, 10, 10, 0.7); /* 20% darker */
                             backdrop-filter: blur(10px);
                             -webkit-backdrop-filter: blur(10px);
                             border: 1px solid rgba(255,255,255,0.2);
-                            border-radius: 20px;
+                            border-radius: 18px;
                             display: flex;
                             align-items: center;
                             justify-content: center;
-                            font-size: 20px;
+                            font-size: 14px;
+                            font-weight: bold;
                             z-index: 99999999;
                             opacity: 0;
                             pointer-events: none;
@@ -226,14 +227,68 @@ struct WebViewWrapper: UIViewRepresentable {
                             transform: translateX(-50%) scale(1.0) !important;
                             pointer-events: auto !important;
                         }
+
+                        /* Exit DM Back Button */
+                        #df-back-btn {
+                            position: fixed;
+                            top: 50%;
+                            left: -10px;
+                            transform: translateY(-50%);
+                            width: 35px;
+                            height: 60px;
+                            background: rgba(30, 30, 30, 0.4);
+                            backdrop-filter: blur(8px);
+                            -webkit-backdrop-filter: blur(8px);
+                            border: 1px solid rgba(255,255,255,0.15);
+                            border-radius: 0 15px 15px 0;
+                            display: flex;
+                            align-items: center;
+                            justify-content: flex-end;
+                            padding-right: 10px;
+                            font-size: 18px;
+                            z-index: 99999998;
+                            opacity: 0.5;
+                            transition: opacity 0.2s ease;
+                            color: white;
+                        }
+                        #df-back-btn:active {
+                            opacity: 1;
+                            background: rgba(50, 50, 50, 0.8);
+                        }
                     `;
                     document.head.appendChild(style);
 
-                    // 1.5 KEYBOARD DISMISS LOGIC
+                    // 1.5 KEYBOARD DISMISS LOGIC & SWIPE EXITS
                     const kbBtn = document.createElement('div');
                     kbBtn.id = 'df-dismiss-kb';
-                    kbBtn.innerHTML = '⬇️';
+                    kbBtn.innerHTML = 'Close';
                     document.body.appendChild(kbBtn);
+
+                    const backBtn = document.createElement('div');
+                    backBtn.id = 'df-back-btn';
+                    backBtn.innerHTML = '‹';
+                    backBtn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        window.history.back();
+                    });
+                    document.body.appendChild(backBtn);
+
+                    let touchStartX = 0;
+                    document.addEventListener('touchstart', (e) => {
+                        if (e.changedTouches) {
+                            touchStartX = e.changedTouches[0].screenX;
+                        }
+                    });
+                    document.addEventListener('touchend', (e) => {
+                        if (!e.changedTouches) return;
+                        const touchEndX = e.changedTouches[0].screenX;
+                        // iOS swipe to go back: detect swipe Right (> 100px) or Left (<-100px)
+                        if (Math.abs(touchEndX - touchStartX) > 100) {
+                            if (window.location.pathname.includes('/direct/t/')) {
+                                window.history.back();
+                            }
+                        }
+                    });
 
                     const dismissAction = (e) => {
                         e.preventDefault();
@@ -247,6 +302,12 @@ struct WebViewWrapper: UIViewRepresentable {
                     kbBtn.addEventListener('touchstart', dismissAction);
 
                     const updateKbPos = () => {
+                        const isKeyboardOpen = window.visualViewport.height < window.innerHeight - 100;
+                        if (!isKeyboardOpen) {
+                            kbBtn.classList.remove('df-kb-visible');
+                            return;
+                        }
+
                         if (!kbBtn.classList.contains('df-kb-visible')) return;
                         
                         const act = document.activeElement;
@@ -254,12 +315,12 @@ struct WebViewWrapper: UIViewRepresentable {
                         if (act && act.getBoundingClientRect) {
                             const r = act.getBoundingClientRect();
                             kbBtn.style.position = 'fixed';
-                            kbBtn.style.top = (r.top - 50) + 'px'; // 50px above the input
+                            kbBtn.style.top = (r.top - 40) + 'px'; // 40px above the input
                             kbBtn.style.left = '50%';
                             kbBtn.style.transform = 'translateX(-50%)';
                             kbBtn.style.bottom = 'auto';
                             kbBtn.style.right = 'auto';
-                            kbBtn.style.background = 'rgba(120, 120, 120, 0.5)';
+                            kbBtn.style.background = 'rgba(10, 10, 10, 0.7)';
                         } else {
                             // default fallback
                             kbBtn.style.bottom = '55vh';
@@ -267,7 +328,7 @@ struct WebViewWrapper: UIViewRepresentable {
                             kbBtn.style.transform = 'translateX(-50%)';
                             kbBtn.style.top = 'auto';
                             kbBtn.style.right = 'auto';
-                            kbBtn.style.background = 'rgba(30, 30, 30, 0.5)';
+                            kbBtn.style.background = 'rgba(10, 10, 10, 0.7)';
                         }
                     };
 
@@ -276,14 +337,14 @@ struct WebViewWrapper: UIViewRepresentable {
                         if (tag === 'TEXTAREA' || tag === 'INPUT' || e.target.isContentEditable || e.target.getAttribute('contenteditable') === 'true' || e.target.getAttribute('role') === 'textbox') {
                             kbBtn.classList.add('df-kb-visible');
                             setTimeout(updateKbPos, 100);
-                            setTimeout(updateKbPos, 400);
+                            setTimeout(updateKbPos, 300);
                         }
                     });
 
                     document.addEventListener('focusout', (e) => {
                         setTimeout(() => {
-                            const act = document.activeElement;
-                            if (!act || (act.tagName !== 'TEXTAREA' && act.tagName !== 'INPUT' && !act.isContentEditable && act.getAttribute('contenteditable') !== 'true' && act.getAttribute('role') !== 'textbox')) {
+                            const isKeyboardOpen = window.visualViewport.height < window.innerHeight - 100;
+                            if (!isKeyboardOpen && kbBtn.classList.contains('df-kb-visible')) {
                                 kbBtn.classList.remove('df-kb-visible');
                             }
                         }, 200);
