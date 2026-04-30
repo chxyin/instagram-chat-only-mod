@@ -9,6 +9,7 @@ struct ContentView: View {
     @AppStorage("mediaAllowed") private var mediaAllowed: Bool = false
    
     @State private var screenTimeSeconds: Int = 0
+    @State private var currentDayString: String = ""
     @State private var webView: WKWebView? = nil
     @State private var menuExpanded = false
     @State private var currentDragOffset: CGSize = .zero
@@ -34,12 +35,18 @@ struct ContentView: View {
                 webViewRef: $webView
             )
             .onAppear {
-                screenTimeSeconds = UserDefaults.standard.integer(forKey: todayKey)
+                currentDayString = todayKey
+                screenTimeSeconds = UserDefaults.standard.integer(forKey: currentDayString)
             }
             .onReceive(timer) { _ in
+                let currentDay = todayKey
+                if currentDay != currentDayString { // Reset at 00:00 midnight automatically
+                    currentDayString = currentDay
+                    screenTimeSeconds = 0
+                }
                 screenTimeSeconds += 1
                 if screenTimeSeconds % 10 == 0 {
-                    UserDefaults.standard.set(screenTimeSeconds, forKey: todayKey)
+                    UserDefaults.standard.set(screenTimeSeconds, forKey: currentDayString)
                 }
             }
            
@@ -196,6 +203,13 @@ struct WebViewWrapper: UIViewRepresentable {
 
                         a, button, div[role="button"] {
                             transition: transform 0.2s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.2s ease-in-out !important;
+                            touch-action: manipulation !important;
+                        }
+
+                        body.df-media-blocked video,
+                        body.df-media-blocked img {
+                            opacity: 0 !important;
+                            pointer-events: none !important;
                         }
 
                         #df-dismiss-kb {
@@ -232,20 +246,21 @@ struct WebViewWrapper: UIViewRepresentable {
                         #df-back-btn {
                             position: fixed;
                             top: 50%;
-                            left: -10px;
+                            left: -5px;
                             transform: translateY(-50%);
-                            width: 35px;
-                            height: 60px;
+                            width: 50px;
+                            height: 80px;
                             background: rgba(30, 30, 30, 0.4);
                             backdrop-filter: blur(8px);
                             -webkit-backdrop-filter: blur(8px);
                             border: 1px solid rgba(255,255,255,0.15);
-                            border-radius: 0 15px 15px 0;
+                            border-radius: 0 20px 20px 0;
                             display: flex;
                             align-items: center;
                             justify-content: flex-end;
-                            padding-right: 10px;
-                            font-size: 18px;
+                            padding-right: 15px;
+                            font-size: 24px;
+                            font-weight: bold;
                             z-index: 99999998;
                             opacity: 0.5;
                             transition: opacity 0.2s ease;
@@ -358,17 +373,19 @@ struct WebViewWrapper: UIViewRepresentable {
                     window.toggleMediaAllowed = function(allowed) {
                         window.mediaAllowed = allowed;
                         if (allowed) {
-                            document.querySelectorAll('video').forEach(el => {
-                                if (el.dataset.blockedSrc) {
-                                    el.src = el.dataset.blockedSrc;
-                                    if (el.tagName === 'VIDEO') el.play();
-                                }
-                            });
+                            document.body.classList.remove('df-media-blocked');
+                        } else {
+                            document.body.classList.add('df-media-blocked');
                         }
                     };
+                    
+                    if (!window.mediaAllowed) {
+                        document.body.classList.add('df-media-blocked');
+                    }
 
-                    // 3. LOGIC LOOP OVERRIDE
-                    setInterval(() => {
+                    // 3. MUTATION OBSERVER LOGIC LOOP (Massive lag fix over setInterval)
+                    let dfObserverTimeout = null;
+                    const applyDFRules = () => {
                         try {
                             const path = window.location.pathname;
 
@@ -430,17 +447,6 @@ struct WebViewWrapper: UIViewRepresentable {
                                 }
                             }
 
-                            // Media Block
-                            if (!window.mediaAllowed) {
-                                document.querySelectorAll('video').forEach(video => {
-                                    if (video.src && video.src !== '') {
-                                        video.dataset.blockedSrc = video.src;
-                                        video.removeAttribute('src');
-                                        video.load();
-                                    }
-                                });
-                            }
-
                             // Extra aggressive attempt to hide Reels inside the main feed
                             const textNodes = document.querySelectorAll('span, div, h2, a');
                             for (let el of textNodes) {
@@ -474,8 +480,18 @@ struct WebViewWrapper: UIViewRepresentable {
                                 }
                             });
 
-                        } catch (e) {}
-                    }, 800);
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    };
+
+                    const dfObserver = new MutationObserver(() => {
+                        if (dfObserverTimeout) clearTimeout(dfObserverTimeout);
+                        dfObserverTimeout = setTimeout(applyDFRules, 150); // 150ms debounce
+                    });
+                    
+                    dfObserver.observe(document.body, { childList: true, subtree: true });
+                    applyDFRules();
                 })();
             """
            
