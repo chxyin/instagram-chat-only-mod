@@ -157,19 +157,82 @@ struct WebViewWrapper: UIViewRepresentable {
             self.parent = parent
         }
        
+        // Native URL Intercept - catches hard navigations instantly before they use any network
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            if let url = navigationAction.request.url {
+                let path = url.path
+                if path == "/" || path.hasPrefix("/reels/") {
+                    decisionHandler(.cancel)
+                    if let inbox = URL(string: "https://www.instagram.com/direct/inbox/") {
+                        webView.load(URLRequest(url: inbox))
+                    }
+                    return
+                }
+            }
+            decisionHandler(.allow)
+        }
+       
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             let jsScript = """
                 javascript:(function() {
                     if (window.distractionFreeInitialized) return;
                     window.distractionFreeInitialized = true;
 
-                    // Extremely lightweight path observer to redirect to inbox
+                    // 1. INSTANT PRELOAD METHOD: Prefetch links ~300ms before they are actualized
+                    let preloadedUrls = new Set();
+                    document.addEventListener('touchstart', (e) => {
+                        let link = e.target.closest('a');
+                        if (!link && e.target.parentElement) {
+                            link = e.target.parentElement.closest('a');
+                        }
+                        if (link && link.href && link.href.startsWith(window.location.origin) && !preloadedUrls.has(link.href)) {
+                            preloadedUrls.add(link.href);
+                            const prefetch = document.createElement('link');
+                            prefetch.rel = 'prefetch';
+                            prefetch.href = link.href;
+                            prefetch.as = 'document';
+                            document.head.appendChild(prefetch);
+                        }
+                    }, { passive: true });
+
+                    // 2. SPA ROUTER INTERCEPT: Instantly block Instagram React navigations
+                    const originalPushState = history.pushState;
+                    const originalReplaceState = history.replaceState;
+                    
+                    const handleUrlChange = (url) => {
+                        if (!url) return false;
+                        let targetPath = '';
+                        try {
+                            const parsed = new URL(url, window.location.origin);
+                            targetPath = parsed.pathname;
+                        } catch(e) { targetPath = url; }
+                        
+                        if (targetPath === '/' || targetPath.startsWith('/reels/')) {
+                            window.location.replace('/direct/inbox/');
+                            return true;
+                        }
+                        return false;
+                    };
+
+                    history.pushState = function(state, unused, url) {
+                        if (handleUrlChange(url)) return;
+                        return originalPushState.apply(this, arguments);
+                    };
+
+                    history.replaceState = function(state, unused, url) {
+                        if (handleUrlChange(url)) return;
+                        return originalReplaceState.apply(this, arguments);
+                    };
+
+                    window.addEventListener('popstate', () => {
+                        handleUrlChange(window.location.href);
+                    });
+
+                    // 3. Fallback path observer (cleans up any straggling DOM events instantly)
                     let dfObserverTimeout = null;
                     const applyDFRules = () => {
                         try {
                             const path = window.location.pathname;
-
-                            // If they try to navigate to home or reels, redirect to direct
                             if (path === '/' || path.startsWith('/reels/')) {
                                 window.location.replace('/direct/inbox/');
                             }
@@ -180,7 +243,7 @@ struct WebViewWrapper: UIViewRepresentable {
 
                     const dfObserver = new MutationObserver(() => {
                         if (dfObserverTimeout) clearTimeout(dfObserverTimeout);
-                        dfObserverTimeout = setTimeout(applyDFRules, 150);
+                        dfObserverTimeout = setTimeout(applyDFRules, 50); // Lowered debounce for faster fallback
                     });
                     
                     dfObserver.observe(document.body, { childList: true, subtree: true });
